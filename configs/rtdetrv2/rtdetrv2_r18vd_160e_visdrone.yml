@@ -1,0 +1,107 @@
+__include__: [
+  '../dataset/visdrone_detection.yml',
+  '../runtime.yml',
+  './include/dataloader_visdrone_200e.yml',
+  './include/optimizer_visdrone_200e.yml',
+  './include/rtdetrv2_r50vd.yml',
+]
+
+output_dir: ./outputvisdrone/rtdetrv2_r18vd_200e_visdrone_scb_p2q_sapr_backbone_v2
+
+PResNet:
+  depth: 18
+  freeze_at: -1
+  freeze_norm: False
+  pretrained: True
+  return_idx: [0, 1, 2, 3]
+  use_sapr_backbone: True
+  sapr_detail_stages: [0, 1]
+  sapr_detail_eta_init: 0.04
+  sapr_detail_eta_max: 0.12
+  sapr_detail_gate_reduction: 16
+  sapr_use_fg_bg_smoothing: True
+  sapr_bg_smooth_beta_init: 0.03
+  sapr_bg_smooth_beta_max: 0.10
+  sapr_replace_stages: [3]
+  sapr_replace_blocks: [-1]
+  sapr_partial_ratio: 0.375
+  sapr_pw_groups: 4
+  sapr_gate_reduction: 16
+  sapr_gate_scale: 0.25
+  sapr_use_c5_lsr: True
+  sapr_lsr_stages: [3]
+  sapr_lsr_gate_init: 0.05
+  sapr_lsr_gate_max: 0.20
+  sapr_lsr_pw_groups: 8
+  sapr_lsr_gate_reduction: 16
+
+HybridEncoder:
+  in_channels: [64, 128, 256, 512]
+  feat_strides: [4, 8, 16, 32]
+  hidden_dim: 256
+  expansion: 0.5
+  use_sa_p2q: True
+  sa_p2q_recall_hidden: 64
+  sa_p2q_recall_prior: 0.01
+  sa_p2q_semantic_init: 0.1
+
+RTDETRTransformerv2:
+  num_layers: 3
+  feat_channels: [256, 256, 256]
+  feat_strides: [8, 16, 32, 4]
+  num_levels: 4
+  num_points: [4, 4, 4, 2]
+  use_sa_p2q: True
+  sa_p2q_p2_min_low: 12
+  sa_p2q_p2_min_high: 48
+  sa_p2q_p2_max_queries: 64
+  sa_p2q_p2_recall_mass_topk: 300
+  sa_p2q_p2_recall_mass_low: 0.03
+  sa_p2q_p2_recall_mass_high: 0.15
+  sa_p2q_refill_margin: 0.12
+  sa_p2q_level_calibration_weight: 0.5
+  sa_p2q_recall_weight: 0.05
+  sa_p2q_recall_min_weight: 0.01
+  sa_p2q_recall_detach: True
+  sa_p2q_recall_eps: 0.0001
+  sa_p2q_recall_clip: 2.0
+  sa_p2q_prior_warm_iters: 65000
+  sa_p2q_prior_anneal_iters: 32000
+  sa_p2q_base_stride: 8
+  use_sa_p2q_detail: True
+  sa_p2q_detail_num_points: 9
+  sa_p2q_detail_sample_scale: 0.75
+  sa_p2q_detail_small_scale: 0.08
+  sa_p2q_detail_small_tau: 0.02
+  sa_p2q_detail_gate_init: 0.03
+  sa_p2q_detail_gate_max: 0.15
+
+RTDETRCriterionv2:
+  weight_dict: {loss_vfl: 1, loss_bbox: 5, loss_giou: 2, loss_p2_recall: 0.10}
+  losses: ['vfl', 'boxes', 'p2_recall']
+  sa_p2q_small_threshold: 0.12
+  sa_p2q_small_tau: 0.03
+  sa_p2q_det_scale_weight: 0.0
+  sa_p2q_recall_alpha_min: 0.25
+  sa_p2q_recall_sigma_scale: 0.25
+  sa_p2q_recall_gamma: 2.0
+  sa_p2q_aux_warm_iters: 65000
+  sa_p2q_aux_anneal_iters: 32000
+  sa_p2q_aux_min_factor: 0.10
+
+epoches: 160
+
+optimizer:
+  type: AdamW
+  params:
+    -
+      params: '^(?=.*(?:norm|bn)).*$'
+      weight_decay: 0.
+
+train_dataloader:
+  dataset:
+    transforms:
+      policy:
+        epoch: 157
+  collate_fn:
+    scales: ~
